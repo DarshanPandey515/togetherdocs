@@ -14,20 +14,24 @@ from pathlib import Path
 from dotenv import load_dotenv
 import os
 
+load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 
-SECRET_KEY = 'django-insecure-t831-y!a4$7*bxbfo!0n1myfw1iqu)2&5-8_1@(q-p2v11xd2s'
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
 
 DEBUG = True
 
-ALLOWED_HOSTS = []
-
+ALLOWED_HOSTS = [
+    "localhost",
+    "127.0.0.1",
+]
 
 
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -36,8 +40,12 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'rest_framework_simplejwt',
+    'channels',
     'src'
 ]
+
+ASGI_APPLICATION = "config.asgi.application"
+
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -130,7 +138,7 @@ from datetime import timedelta
 
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=5),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=1440),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
     "ROTATE_REFRESH_TOKENS": False,
     "BLACKLIST_AFTER_ROTATION": False,
@@ -177,3 +185,29 @@ SIMPLE_JWT = {
 
 
 AUTH_USER_MODEL = "src.CustomUser"
+
+
+REDIS_URL = os.getenv("UPSTASH_REDIS_REST_URL")
+if REDIS_URL and REDIS_URL.startswith("redis://"):
+    REDIS_URL = REDIS_URL.replace("redis://", "rediss://", 1)
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [
+                {
+                    "address": REDIS_URL,  
+                    "socket_timeout": None,                
+                }
+            ],
+        },
+    },
+}
+
+# development server
+# CHANNEL_LAYERS = {
+#     "default": {
+#         "BACKEND": "channels.layers.InMemoryChannelLayer",
+#     },
+# }
