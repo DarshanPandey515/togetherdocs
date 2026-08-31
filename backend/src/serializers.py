@@ -106,7 +106,7 @@ class DocumentPermissionSerializer(serializers.ModelSerializer):
         ]
 
 
-class ShareDocumentSerializer(serializers.ModelSerializer):
+class ShareDocumentSerializer(serializers.Serializer):
     email = serializers.EmailField()
     role = serializers.ChoiceField(
         choices=DocumentPermission.Role.choices,

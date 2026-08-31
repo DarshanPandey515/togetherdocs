@@ -40,9 +40,9 @@ def can_share_document(document: Document, user: User) -> bool: #type: ignore
     return document.owner_id == user.id
 
 
-def get_accessible_documents(document: Document, user: User) -> QuerySet[Document]: #type: ignore
+def get_accessible_documents(user: User) -> QuerySet[Document]:
     return Document.objects.filter(
         owner=user,
     ) | Document.objects.filter(
-        permission__user=user,
+        permissions__user=user,
     )
