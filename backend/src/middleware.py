@@ -5,7 +5,7 @@ from urllib.parse import parse_qs
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser
 from rest_framework_simplejwt.tokens import AccessToken
-from rest_framework_simplejwt.exceptions import InvalidToken
+from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 
 
 
@@ -16,9 +16,6 @@ class JWTAuthMiddleware(BaseMiddleware):
     
     async def __call__(self, scope: dict, receive, send):
         scope["user"] = await self.get_user(scope)
-        
-        
-        
         return await super().__call__(scope, receive, send)
     
     @database_sync_to_async
@@ -42,6 +39,7 @@ class JWTAuthMiddleware(BaseMiddleware):
         
         except (
             InvalidToken,
-            User.DoesNotExist
+            TokenError,
+            User.DoesNotExist,
         ):
-            return AnonymousUser
+            return AnonymousUser()
