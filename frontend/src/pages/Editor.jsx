@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import FroalaEditorComponent from 'react-froala-wysiwyg'
 import 'froala-editor/css/froala_style.min.css'
 import 'froala-editor/css/froala_editor.pkgd.min.css'
 import 'froala-editor/js/plugins.pkgd.min.js'
 import { api, ApiError } from '../api'
+import CollabClient from '../collab'
 import Brand from '../components/Brand'
 
 const FroalaEditor = FroalaEditorComponent.default || FroalaEditorComponent
@@ -30,12 +31,16 @@ const primaryBtn =
 
 export default function Editor({ docId, onBack }) {
   const [doc, setDoc] = useState(null)
-  const [content, setContent] = useState('')
   const [title, setTitle] = useState('')
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [status, setStatus] = useState('')
+  const [content, setContent] = useState('')
+  const [version, setVersion] = useState(0)
+  const [connected, setConnected] = useState(false)
+  const [online, setOnline] = useState(0)
+  const [status, setStatus] = useState('Connecting…')
+  const [conflict, setConflict] = useState(false)
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
+
   const [showShare, setShowShare] = useState(false)
   const [showVersions, setShowVersions] = useState(false)
   const [versions, setVersions] = useState([])
@@ -47,6 +52,17 @@ export default function Editor({ docId, onBack }) {
   const [shareOk, setShareOk] = useState(false)
   const [shareMessage, setShareMessage] = useState('')
 
+  // Refs mirror the authoritative/latest values so async handlers never read
+  // stale state from the render closure.
+  const versionRef = useRef(0)
+  const contentRef = useRef('')
+  const remoteRef = useRef('')
+  const pendingRef = useRef(null)
+  const sendTimer = useRef(null)
+  const titleTimer = useRef(null)
+  const collabRef = useRef(null)
+
+  // Initial load via REST (title/owner metadata + fallback content).
   useEffect(() => {
     let cancelled = false
     setLoading(true)
@@ -58,6 +74,10 @@ export default function Editor({ docId, onBack }) {
         setDoc(data)
         setTitle(data.title)
         setContent(data.content)
+        contentRef.current = data.content
+        remoteRef.current = data.content
+        versionRef.current = data.version
+        setVersion(data.version)
       })
       .catch((err) => {
         if (!cancelled) setError(err instanceof ApiError ? err.message : 'Failed to load document.')
@@ -70,20 +90,114 @@ export default function Editor({ docId, onBack }) {
     }
   }, [docId])
 
-  async function handleSave() {
-    setSaving(true)
-    setError('')
-    setStatus('')
-    try {
-      const updated = await api.updateDocument(docId, { title, content })
-      setDoc(updated)
-      setTitle(updated.title)
-      setStatus(`Saved · v${updated.version}`)
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to save document.')
-    } finally {
-      setSaving(false)
+  // WebSocket collaboration connection.
+  useEffect(() => {
+    const client = new CollabClient(docId, {
+      onConnected: () => {
+        setConnected(true)
+        setStatus('Syncing…')
+      },
+      onState: (data) => {
+        const pending = pendingRef.current
+        pendingRef.current = null
+        setConnected(true)
+        setConflict(false)
+        if (pending != null && pending !== data.content) {
+          // Client had offline edits; replay them on the authoritative version.
+          versionRef.current = data.version
+          setVersion(data.version)
+          client.sendEdit(data.version, pending)
+          setStatus('Sending pending changes…')
+        } else {
+          versionRef.current = data.version
+          setVersion(data.version)
+          contentRef.current = data.content
+          remoteRef.current = data.content
+          setContent(data.content)
+          setStatus('Connected')
+        }
+      },
+      onAck: (data) => {
+        versionRef.current = data.version
+        setVersion(data.version)
+        setConflict(false)
+        setStatus(`Saved · v${data.version}`)
+      },
+      onReject: (data) => {
+        // Authoritative state — apply it so the client can recover.
+        versionRef.current = data.version
+        setVersion(data.version)
+        contentRef.current = data.content
+        remoteRef.current = data.content
+        setContent(data.content)
+        setConflict(true)
+        setStatus(`Conflict — updated to v${data.version}`)
+      },
+      onBroadcast: (data) => {
+        if (client.userId && data.user_id === client.userId) return
+        versionRef.current = data.version
+        setVersion(data.version)
+        contentRef.current = data.content
+        remoteRef.current = data.content
+        setContent(data.content)
+        setConflict(false)
+      },
+      onError: (data) => {
+        setStatus(data.message || 'Error')
+      },
+      onStatus: (message) => {
+        setConnected(false)
+        setStatus(message)
+      },
+      onPresenceState: (users) => {
+        setOnline(Array.isArray(users) ? users.length : 0)
+      },
+      onPresenceJoin: () => {
+        setOnline((n) => n + 1)
+      },
+      onPresenceLeave: () => {
+        setOnline((n) => Math.max(0, n - 1))
+      },
+    })
+    collabRef.current = client
+    return () => {
+      clearTimeout(sendTimer.current)
+      client.close()
+      collabRef.current = null
     }
+  }, [docId])
+
+  function handleContentChange(newContent) {
+    contentRef.current = newContent
+    setContent(newContent)
+    // Ignore echoes of server-applied content (from sync/broadcast/reject).
+    if (newContent === remoteRef.current) return
+    setStatus('Saving…')
+    clearTimeout(sendTimer.current)
+    sendTimer.current = setTimeout(flushEdit, 500)
+  }
+
+  function flushEdit() {
+    clearTimeout(sendTimer.current)
+    const client = collabRef.current
+    if (!client || !client.connected) {
+      pendingRef.current = contentRef.current
+      setStatus('Offline — changes pending')
+      return
+    }
+    remoteRef.current = contentRef.current
+    client.sendEdit(versionRef.current, contentRef.current)
+    setStatus('Saving…')
+  }
+
+  function handleTitleChange(next) {
+    setTitle(next)
+    clearTimeout(titleTimer.current)
+    titleTimer.current = setTimeout(() => {
+      api.updateDocument(docId, { title: next }).catch((err) => {
+        setError(err instanceof ApiError ? err.message : 'Failed to save title.')
+      })
+    }, 600)
   }
 
   async function handleShare(event) {
@@ -137,7 +251,7 @@ export default function Editor({ docId, onBack }) {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-10 flex h-11 items-center justify-between border-b border-line bg-paper px-4">
+      <header className="sticky top-0 z-10 flex h-11 items-center justify-between gap-3 border-b border-line bg-paper px-4">
         <div className="flex items-center gap-4">
           <button onClick={onBack} className="font-mono text-xs text-smoke hover:text-ink">
             ← Documents
@@ -145,14 +259,20 @@ export default function Editor({ docId, onBack }) {
           <Brand />
         </div>
         <div className="flex items-center gap-2">
+          <span
+            className={`font-mono text-[11px] ${connected ? 'text-smoke' : 'text-red-600'}`}
+            title={status}
+          >
+            {connected ? `${online} online` : 'offline'}
+          </span>
           <button onClick={loadVersions} className={secondaryBtn}>
             {showVersions ? 'Hide history' : 'History'}
           </button>
           <button onClick={() => setShowShare(true)} className={secondaryBtn}>
             Share
           </button>
-          <button className={primaryBtn} disabled={saving} onClick={handleSave}>
-            {saving ? 'Saving…' : 'Save'}
+          <button className={primaryBtn} onClick={flushEdit}>
+            Save
           </button>
         </div>
       </header>
@@ -161,25 +281,32 @@ export default function Editor({ docId, onBack }) {
         <div className="sheet mx-auto max-w-3xl px-10 py-10">
           <input
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(e) => handleTitleChange(e.target.value)}
             placeholder="Untitled document"
             className="w-full border border-transparent bg-transparent px-0 py-0 font-display text-3xl font-semibold tracking-tight placeholder:text-smoke/60 focus:border-b focus:border-ink focus:outline-none"
           />
 
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <span className="border border-ink px-1.5 py-0.5 font-mono text-[11px] font-medium">
-              v{doc.version}
+              v{version}
             </span>
             <span className="font-mono text-[11px] text-smoke">{doc.owner_name}</span>
-            {status && <span className="font-mono text-[11px] text-smoke">{status}</span>}
+            <span className="font-mono text-[11px] text-smoke">{status}</span>
             {error && <span className="font-mono text-[11px] text-red-600">{error}</span>}
           </div>
+
+          {conflict && (
+            <div className="mt-4 border border-ink bg-ink px-3 py-2 text-xs text-paper">
+              Someone edited this document from your version. Your editor now shows the
+              latest content (v{version}).
+            </div>
+          )}
 
           <div className="mt-7">
             <FroalaEditor
               tag="textarea"
               model={content}
-              onModelChange={(newContent) => setContent(newContent)}
+              onModelChange={handleContentChange}
               config={EDITOR_CONFIG}
             />
           </div>
