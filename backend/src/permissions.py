@@ -3,6 +3,9 @@ from typing import Literal
 from django.contrib.auth import get_user_model
 from django.db.models import QuerySet
 from src.models import Document, DocumentPermission
+from django.db.models import Q
+
+
 
 User = get_user_model()
 
@@ -40,9 +43,9 @@ def can_share_document(document: Document, user: User) -> bool: #type: ignore
     return document.owner_id == user.id
 
 
-def get_accessible_documents(user: User) -> QuerySet[Document]:
-    return Document.objects.filter(
-        owner=user,
-    ) | Document.objects.filter(
-        permissions__user=user,
+def get_accessible_documents(user: User) -> QuerySet[Document]: #type: ignore
+    return (
+        Document.objects
+        .filter(Q(owner=user) | Q(permissions__user=user))
+        .distinct()
     )
