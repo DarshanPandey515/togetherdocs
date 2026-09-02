@@ -13,13 +13,11 @@ cryptography==50.0.1
 daphne==4.2.3
 dj-database-url==3.1.2
 django==6.1
-django-channels==0.7.0
 django-cors-headers==4.9.0
 django-daisy==2.0.15
 django-froala-editor==5.4.0
 djangorestframework==3.18.0
 djangorestframework-simplejwt==5.5.1
-dotenv==0.9.9
 hyperlink==21.0.0
 idna==3.19
 incremental==24.11.0
