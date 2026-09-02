@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getToken, getUser, clearAuth } from './api'
+import { getToken, getUser, clearAuth } from './lib/api'
 import AuthPage from './pages/AuthPage'
 import Dashboard from './pages/Dashboard'
 import Editor from './pages/Editor'

@@ -1,16 +1,23 @@
 @import 'tailwindcss';
 
 @theme {
-  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --font-display: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Sora', 'Plus Jakarta Sans', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  --color-ink: #0a0a0a;
-  --color-coal: #1f1f1f;
-  --color-smoke: #6f6f6f;
-  --color-line: #e6e6e6;
-  --color-mist: #f3f3f3;
-  --color-fog: #fafafa;
+  --color-ink: #3e0f8d;
+  --color-ink-600: #4b1ba6;
+  --color-violet: #9564dd;
+  --color-violet-600: #6d35c9;
+  --color-violet-soft: #f1eafb;
+  --color-sun: #e4da72;
+  --color-sun-soft: #faf6d9;
+
+  --color-coal: #2a2440;
+  --color-smoke: #6b6480;
+  --color-line: #eceae3;
+  --color-mist: #f4f2ef;
+  --color-fog: #faf9f7;
   --color-paper: #ffffff;
 }
 
@@ -21,8 +28,8 @@ body,
 }
 
 body {
-  @apply bg-mist font-sans text-ink antialiased;
-  font-size: 15px;
+  @apply bg-mist font-sans text-coal antialiased;
+  font-size: 14px;
 }
 
 ::selection {
@@ -31,59 +38,97 @@ body {
 }
 
 :focus-visible {
-  outline: 2px solid var(--color-ink);
+  outline: 2px solid var(--color-violet);
   outline-offset: 2px;
+  border-radius: 4px;
 }
 
-/* The desk — a fine dot grid the paper sheet sits on */
+/* The desk — a soft violet-tinted wash the paper sheet sits on */
 .desk {
   background-color: var(--color-mist);
-  background-image: radial-gradient(circle, rgba(10, 10, 10, 0.1) 1px, transparent 1px);
-  background-size: 24px 24px;
+  background-image:
+    radial-gradient(circle at 20% 0%, rgba(149, 100, 221, 0.10), transparent 45%),
+    radial-gradient(circle at 85% 100%, rgba(228, 218, 114, 0.14), transparent 45%);
 }
 
 /* The paper sheet */
 .sheet {
   background: var(--color-paper);
   box-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.05),
-    0 16px 40px rgba(0, 0, 0, 0.1);
+    0 1px 2px rgba(62, 15, 141, 0.04),
+    0 20px 48px rgba(62, 15, 141, 0.10);
+  border: 1px solid var(--color-line);
+  border-radius: 20px;
 }
 
-/* Froala, in monochrome */
+/* Signature — the live collaboration pulse */
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(228, 218, 114, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 7px rgba(228, 218, 114, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(228, 218, 114, 0);
+  }
+}
+.live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: var(--color-sun);
+  animation: pulse-ring 2.2s ease-out infinite;
+}
+
+/* Froala, rounded + on-brand */
+.fr-box,
 .fr-toolbar,
-.fr-wrapper,
-.fr-box {
-  border-radius: 0 !important;
+.fr-wrapper {
+  border-radius: 14px !important;
 }
 .fr-toolbar {
-  border: none !important;
-  border-bottom: 1px solid var(--color-line) !important;
-  background: transparent !important;
+  border: 1px solid var(--color-line) !important;
+  border-bottom: none !important;
+  border-radius: 14px 14px 0 0 !important;
+  background: var(--color-fog) !important;
   box-shadow: none !important;
 }
 .fr-wrapper {
-  border: none !important;
+  border: 1px solid var(--color-line) !important;
+  border-radius: 0 0 14px 14px !important;
   box-shadow: none !important;
 }
 .fr-element,
 .fr-placeholder {
   font-family: var(--font-sans) !important;
   font-size: 15px !important;
-  line-height: 1.75 !important;
+  line-height: 1.8 !important;
 }
 .fr-element {
-  color: var(--color-ink) !important;
+  color: var(--color-coal) !important;
 }
 .fr-placeholder {
   color: var(--color-smoke) !important;
+}
+.fr-btn:hover {
+  background: var(--color-violet-soft) !important;
+  color: var(--color-ink) !important;
+}
+/* Keep keyboard focus visible in the Froala toolbar */
+.fr-toolbar .fr-btn:focus-visible,
+.fr-command:focus-visible,
+.fr-menu .fr-command:focus-visible {
+  outline: 2px solid var(--color-violet) !important;
+  outline-offset: -2px;
+  border-radius: 4px;
 }
 
 /* Gentle entrance */
 @keyframes rise {
   from {
     opacity: 0;
-    transform: translateY(4px);
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
@@ -91,7 +136,7 @@ body {
   }
 }
 .rise {
-  animation: rise 0.25s ease-out both;
+  animation: rise 0.3s ease-out both;
 }
 
 @media (prefers-reduced-motion: reduce) {

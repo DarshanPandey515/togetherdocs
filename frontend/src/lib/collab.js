@@ -1,13 +1,5 @@
 import { getToken } from './api'
 
-/**
- * WebSocket client for the document collaboration protocol.
- *
- * Wire protocol (server -> client): connection.accepted, state, ack, reject,
- * broadcast, presence.state / presence.join / presence.leave, error.
- * Wire protocol (client -> server): { action: "sync" }, { action: "edit",
- * version, content }.
- */
 export default class CollabClient {
   constructor(docId, handlers = {}) {
     this.docId = docId
@@ -101,10 +93,6 @@ export default class CollabClient {
       return true
     }
     return false
-  }
-
-  requestSync() {
-    this.send({ action: 'sync' })
   }
 
   sendEdit(version, content) {

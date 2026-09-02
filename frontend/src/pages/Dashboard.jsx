@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { api, ApiError } from '../api'
-import Brand from '../components/Brand'
+import { api, ApiError } from '../lib/api'
+import DashboardHeader from '../components/DashboardHeader'
+import DocCard from '../components/DocCard'
 
 export default function Dashboard({ user, onOpen, onLogout }) {
   const [docs, setDocs] = useState([])
@@ -59,90 +60,80 @@ export default function Dashboard({ user, onOpen, onLogout }) {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-10 flex h-11 items-center justify-between border-b border-line bg-paper px-4">
-        <Brand />
-        <div className="flex items-center gap-3">
-          <span className="font-mono text-xs text-smoke">{user?.name || user?.email}</span>
-          <button
-            onClick={onLogout}
-            className="font-mono text-xs text-smoke hover:text-ink"
-          >
-            Sign out
-          </button>
-        </div>
-      </header>
+      <DashboardHeader user={user} onLogout={onLogout} />
 
-      <main className="mx-auto w-full max-w-2xl px-4 py-10">
-        <div className="flex items-end justify-between">
+      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 sm:px-6">
+        <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-smoke">Your workspace</p>
-            <h1 className="mt-1 font-display text-3xl font-semibold tracking-tight">Documents</h1>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-600">
+              Your workspace
+            </p>
+            <h1 className="mt-1 font-display text-2xl font-semibold tracking-tight text-ink">
+              Documents
+            </h1>
           </div>
-          <span className="font-mono text-xs text-smoke">
+          <span className="rounded-full bg-paper px-3 py-1 text-xs font-medium text-smoke shadow-sm">
             {loading ? '…' : `${docs.length} ${docs.length === 1 ? 'document' : 'documents'}`}
           </span>
         </div>
 
-        <form onSubmit={handleCreate} className="mt-7 flex gap-2">
+        <form onSubmit={handleCreate} className="mt-6 flex flex-col gap-2 sm:flex-row sm:gap-2.5">
           <input
             value={newTitle}
             onChange={(e) => setNewTitle(e.target.value)}
             placeholder="Untitled document"
-            className="flex-1 border border-line bg-paper px-3 py-2 text-sm placeholder:text-smoke focus:border-ink focus:outline-none"
+            className="h-11 flex-1 rounded-xl border border-line bg-paper px-4 text-sm placeholder:text-smoke shadow-sm transition focus:border-violet focus:outline-none"
           />
           <button
             type="submit"
             disabled={creating}
-            className="shrink-0 bg-ink px-4 py-2 text-sm font-medium text-paper hover:bg-coal disabled:opacity-50"
+            className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-ink px-5 text-sm font-semibold text-paper shadow-[0_8px_20px_rgba(62,15,141,0.28)] transition hover:bg-ink-600 disabled:opacity-50"
           >
+            <svg className="size-4 text-sun" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <path d="M8 2a1 1 0 0 1 1 1v4h4a1 1 0 1 1 0 2H9v4a1 1 0 1 1-2 0V9H3a1 1 0 1 1 0-2h4V3a1 1 0 0 1 1-1Z" />
+            </svg>
             {creating ? 'Creating…' : 'New document'}
           </button>
         </form>
 
-        {error && <p className="mt-3 text-[13px] text-red-600">{error}</p>}
+        {error && (
+          <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-[13px] text-red-700">{error}</p>
+        )}
 
-        <section className="mt-6 border border-line bg-paper">
+        <section className="mt-6">
           {loading && (
-            <p className="px-4 py-10 text-center font-mono text-xs text-smoke">Loading documents…</p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="h-28 animate-pulse rounded-2xl bg-line/60" />
+              ))}
+            </div>
           )}
+
           {!loading && docs.length === 0 && (
-            <p className="border border-dashed border-line bg-fog px-4 py-12 text-center font-mono text-xs text-smoke">
-              No documents yet — create your first above.
-            </p>
+            <div className="rounded-2xl border border-dashed border-line bg-paper px-6 py-16 text-center">
+              <p className="font-display text-base font-semibold text-ink">No documents yet</p>
+              <p className="mt-1 text-sm text-smoke">
+                Name one above and hit <span className="font-medium text-ink">New document</span> to
+                start writing.
+              </p>
+            </div>
           )}
-          {!loading &&
-            docs.map((doc) => (
-              <div
-                key={doc.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => onOpen(doc.id)}
-                onKeyDown={(e) => e.key === 'Enter' && onOpen(doc.id)}
-                className="group flex cursor-pointer items-center justify-between gap-3 border-b border-line px-4 py-3 transition-colors duration-150 last:border-b-0 hover:bg-ink hover:text-paper"
-              >
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-medium">{doc.title}</div>
-                  <div className="mt-0.5 font-mono text-[11px] text-smoke group-hover:text-paper/70">
-                    {doc.owner_name} · v{doc.version} · {formatDate(doc.updated_at)}
-                  </div>
-                </div>
-                <button
-                  className="shrink-0 px-2 py-1 font-mono text-xs text-smoke opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-hover:text-paper hover:!text-red-500 disabled:opacity-0"
-                  disabled={deletingId === doc.id}
-                  onClick={(e) => handleDelete(doc.id, e)}
-                  aria-label={`Delete ${doc.title}`}
-                >
-                  {deletingId === doc.id ? '…' : '×'}
-                </button>
-              </div>
-            ))}
+
+          {!loading && docs.length > 0 && (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {docs.map((doc) => (
+                <DocCard
+                  key={doc.id}
+                  doc={doc}
+                  deleting={deletingId === doc.id}
+                  onOpen={onOpen}
+                  onDelete={handleDelete}
+                />
+              ))}
+            </div>
+          )}
         </section>
       </main>
     </div>
   )
-}
-
-function formatDate(value) {
-  if (!value) return ''
-  return new Date(value).toLocaleString()
 }
