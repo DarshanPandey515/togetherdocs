@@ -13,7 +13,7 @@ SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
 
 DEBUG = os.getenv("DJANGO_DEBUG", "false").lower() == "true"
 
-ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", "togetherdocs.onrender.com",]
 
 _allowed_hosts = os.getenv("DJANGO_ALLOWED_HOSTS", os.getenv("RENDER_EXTERNAL_HOSTNAME", ""))
 ALLOWED_HOSTS += [host.strip() for host in _allowed_hosts.split(",") if host.strip()]
@@ -214,3 +214,5 @@ CORS_ALLOWED_ORIGINS = [
     if origin.strip()
 ]
 CORS_ALLOW_CREDENTIALS = True
+
+
