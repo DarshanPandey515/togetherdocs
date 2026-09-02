@@ -4,6 +4,9 @@ import { defineConfig } from 'vite'
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  // Expose API_* (and VITE_*) env vars to the client bundle so the backend
+  // origin can live in a non-public Vercel config variable (API_URL).
+  envPrefix: ['VITE_', 'API_'],
   server: {
     proxy: {
       '/api': {
