@@ -1,6 +1,6 @@
 from django.urls import path
 
-from src.consumers import DocumentConsumer
+from src.realtime.consumers import DocumentConsumer
 
 
 websocket_urlpatterns = [

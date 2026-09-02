@@ -21,9 +21,14 @@ dist-ssr/
 .env.local
 .env.*.local
 
+# OpenCode / skills
+.opencode/
+skills-lock.json
+
 # OS / editor
 .DS_Store
 .vscode/*
 !.vscode/extensions.json
 .idea
 *.sw?
+deployment-context.md

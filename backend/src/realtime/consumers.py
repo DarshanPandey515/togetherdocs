@@ -4,12 +4,12 @@ from django.contrib.auth.models import AnonymousUser
 from src.models import Document
 from typing import Any
 from django.contrib.auth import get_user_model
-from src.permissions import can_view_document
+from src.api.permissions import can_view_document
 from channels.db import database_sync_to_async
-from src.redis import redis_client
-from src.presence import PresenceService
-from src.collaboration import CollaborationService
-from src.protocol import Msg, Code, ACTION_EDIT, ACTION_SYNC
+from src.realtime.redis import redis_client
+from src.realtime.presence import PresenceService
+from src.services.collaboration import CollaborationService
+from src.realtime.protocol import Msg, Code, ACTION_EDIT, ACTION_SYNC
 import uuid
 
 
@@ -146,6 +146,7 @@ class DocumentConsumer(AsyncJsonWebsocketConsumer):
             return
 
         error, expected_version, edit_content = self.collaboration.validate_edit(content)
+        
         if error is not None:
             await self.send_json(
                 {"type": Msg.ERROR, "code": error, "message": "Invalid edit payload."}

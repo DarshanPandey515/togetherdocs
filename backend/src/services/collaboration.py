@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import Any
 from django.db import transaction
 from src.models import Document, DocumentVersion, CustomUser
-from src.permissions import can_edit_document, can_view_document
+from src.api.permissions import can_edit_document, can_view_document
 
 
 @dataclass(frozen=True)

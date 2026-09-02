@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from src.views import (
+from src.api.views import (
     SignupView,
     LoginView,
     DocumentViewset,

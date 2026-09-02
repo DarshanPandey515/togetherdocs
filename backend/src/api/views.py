@@ -5,9 +5,9 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet, ViewSet
-from src.serializers import *
-from src.permissions import *
-from src.services import create_document, save_document_content
+from src.api.serializers import *
+from src.api.permissions import *
+from src.services.services import create_document, save_document_content
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
 from rest_framework.decorators import action
