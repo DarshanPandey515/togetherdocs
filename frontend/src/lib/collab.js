@@ -1,4 +1,4 @@
-import { getToken } from './api'
+import { getToken, getApiBase } from './api'
 
 export default class CollabClient {
   constructor(docId, handlers = {}) {
@@ -13,9 +13,17 @@ export default class CollabClient {
   }
 
   wsUrl() {
-    const proto = window.location.protocol === 'https:' ? 'wss' : 'ws'
     const token = encodeURIComponent(getToken() || '')
-    return `${proto}://${window.location.host}/ws/documents/${this.docId}/?token=${token}`
+    const apiBase = getApiBase()
+    let origin
+    if (apiBase) {
+      // Deployed: use the configured backend origin, http(s) -> ws(s).
+      origin = apiBase.replace(/^http/, 'ws')
+    } else {
+      // Local dev: same host as the page (Vite proxies /ws to the backend).
+      origin = `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}`
+    }
+    return `${origin}/ws/documents/${this.docId}/?token=${token}`
   }
 
   connect() {

@@ -1,6 +1,15 @@
 const TOKEN_KEY = 'togetherdocs_access'
 const USER_KEY = 'togetherdocs_user'
 
+// Backend origin, e.g. "https://togetherdocs-api.onrender.com".
+// Set VITE_API_URL in the Vercel dashboard (or frontend/.env for local runs).
+// When unset, requests go to the relative /api path (dev proxy).
+const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '')
+
+export function getApiBase() {
+  return API_BASE
+}
+
 export function getToken() {
   return localStorage.getItem(TOKEN_KEY)
 }
@@ -63,7 +72,7 @@ async function request(path, { method = 'GET', body } = {}) {
 
   let res
   try {
-    res = await fetch(`/api${path}`, {
+    res = await fetch(`${API_BASE}/api${path}`, {
       method,
       headers,
       body: body !== undefined ? JSON.stringify(body) : undefined,
