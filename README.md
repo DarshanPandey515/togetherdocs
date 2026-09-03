@@ -22,45 +22,57 @@ A Google Docs–style collaborative document editor. Authenticated users create 
 | Hosting    | Vercel (frontend), Render (backend)                    |
 
 ## Architecture
-
 ```mermaid
 flowchart LR
-    subgraph Browser
-        UI[React app]
-        REST["lib/api.js (fetch)"]
-        WS["lib/collab.js (WebSocket)"]
-        UI --- REST
-        UI --- WS
+    classDef client fill:#E3F2FD,stroke:#1565C0,stroke-width:1px,color:#0D47A1
+    classDef api fill:#FFF3E0,stroke:#EF6C00,stroke-width:1px,color:#E65100
+    classDef svc fill:#F3E5F5,stroke:#6A1B9A,stroke-width:1px,color:#4A148C
+    classDef data fill:#E8F5E9,stroke:#2E7D32,stroke-width:1px,color:#1B5E20
+
+    subgraph Client["🖥️ Browser"]
+        UI["Web UI<br/>React + Froala editor"]
     end
 
-    subgraph Backend[Django backend]
-        subgraph REST_LAYER[REST API]
-            VIEWS[api/views.py]
-            SER[api/serializers.py]
+    subgraph Backend["⚙️ Django Backend"]
+        direction TB
+
+        subgraph API["API Layer"]
+            direction LR
+            REST["REST API<br/>auth · docs · sharing · versions"]
+            WS["WebSocket Consumer<br/>realtime channel"]
         end
-        subgraph RT[Realtime layer]
-            ROUTE[realtime/routing.py]
-            AUTH[JWT Auth Middleware]
-            CONSUMER[DocumentConsumer]
-            PRESENCE[PresenceService]
-        end
-        SERVICE[services/collaboration.py]
-        MODELS[(Document / DocumentVersion / Permissions)]
+
+        SVC["Application Services<br/>collaboration engine + versioning"]
     end
 
-    REDIS[(Redis)]
+    subgraph Data["💾 Data Layer"]
+        direction LR
+        PG[("PostgreSQL<br/>source of truth")]
+        RD[("Redis<br/>presence · pub/sub broadcast")]
+    end
 
-    REST -->|"HTTPS /api/*"| VIEWS
-    VIEWS --> SER --> MODELS
+    UI -->|"HTTPS /api/*<br/>CRUD, auth, sharing"| REST
+    UI <-->|"WSS /ws/documents/:id<br/>live edits, cursors"| WS
 
-    WS -->|"WSS /ws/documents/:id"| ROUTE
-    ROUTE --> AUTH --> CONSUMER
-    CONSUMER --> SERVICE --> MODELS
-    CONSUMER --> PRESENCE --> REDIS
-    CONSUMER <-->|"channel layer / broadcast"| REDIS
+    REST --> SVC
+    WS --> SVC
+
+    SVC -->|"persist docs & versions"| PG
+    WS <-->|"pub/sub fan-out<br/>across server instances"| RD
+
+    class UI client
+    class REST,WS api
+    class SVC svc
+    class PG,RD data
 ```
 
-The consumer is transport/orchestration code only. All consistency rules (validating an edit, checking the expected version, persisting content + a version snapshot) live in `CollaborationService` — a WebSocket message never calls `Document.save()` directly.
+The system is a client–server web app split across two deployable halves:
+
+- **Browser** — a React single-page application. Regular actions (signup, login, document list, sharing, version history) use REST; live editing uses a WebSocket connection to the document's realtime channel.
+- **REST API** — stateless HTTP endpoints for everything that isn't real time. All requests are authenticated with a JWT access token.
+- **Realtime API** — a WebSocket endpoint per document (`/ws/documents/:id`). It authenticates the connection, checks the user can view the document, tracks presence, and routes edit messages to the application services.
+- **Application services** — the rules live here: role authorization, the optimistic-version consistency check, and persisting content together with an immutable version snapshot. WebSocket messages never write to the database directly.
+- **Data** — PostgreSQL is the source of truth for documents, versions, permissions, and users. Redis handles presence counts and relays broadcasts between connected clients; it never stores document content.
 
 ## WebSocket collaboration
 
